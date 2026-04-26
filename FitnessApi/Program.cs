@@ -1,4 +1,5 @@
 using System.Text;
+using FitnessApi.Data;
 using FitnessApi.Database;
 using FitnessApi.Models;
 using FitnessApi.Services;
@@ -50,6 +51,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddScoped<IGoalsService, GoalsService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -77,6 +79,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+    await DataSeeder.SeedAsync(scope.ServiceProvider);
 
 if (app.Environment.IsDevelopment())
 {

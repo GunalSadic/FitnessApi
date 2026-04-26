@@ -12,6 +12,10 @@ namespace FitnessApi.Database
         {
             base.OnModelCreating(builder);
 
+            builder.Entity<ApplicationUser>()
+                .Property(u => u.WeeklyGoal)
+                .HasDefaultValue(3);
+
             builder.Entity<Subscription>()
                 .HasOne<ApplicationUser>()
                 .WithMany(u => u.Subscriptions)

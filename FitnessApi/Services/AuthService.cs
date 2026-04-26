@@ -41,7 +41,7 @@ namespace FitnessApi.Services
                 return new AuthResponseDto { IsSuccess = false, Message = $"Registration failed: {errors}" };
             }
 
-            var token = GenerateJwtToken(user);
+            var token = await GenerateJwtTokenAsync(user);
             return new AuthResponseDto { IsSuccess = true, Message = "User created successfully.", Token = token };
         }
 
@@ -55,18 +55,23 @@ namespace FitnessApi.Services
             if (!isPasswordValid)
                 return new AuthResponseDto { IsSuccess = false, Message = "Invalid credentials." };
 
-            var token = GenerateJwtToken(user);
+            var token = await GenerateJwtTokenAsync(user);
             return new AuthResponseDto { IsSuccess = true, Message = "Login successful", Token = token };
         }
 
-        private string GenerateJwtToken(ApplicationUser user)
+        private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
         {
-            var claims = new[]
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim("fullName", user.FullName ?? ""),
             };
+
+            foreach (var role in roles)
+                claims.Add(new Claim(ClaimTypes.Role, role));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
