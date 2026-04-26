@@ -13,7 +13,8 @@ namespace FitnessApi.Services
         public readonly IConfiguration _config;
         public readonly UserManager<ApplicationUser> _userManager;
 
-        public JwtTokenGenerator(IConfiguration configuration, UserManager<ApplicationUser> userManager) { 
+        public JwtTokenGenerator(IConfiguration configuration, UserManager<ApplicationUser> userManager)
+        {
             _config = configuration;
             _userManager = userManager;
         }
@@ -24,6 +25,7 @@ namespace FitnessApi.Services
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
+                new Claim("fullName", user.FullName ?? "John Doe"), 
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -38,7 +40,7 @@ namespace FitnessApi.Services
 
             var expireDays = Convert.ToDouble(_config["Jwt:ExpireDays"] ?? "1");
             var expires = DateTime.UtcNow.AddDays(expireDays);
-            
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),

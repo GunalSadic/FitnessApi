@@ -1,27 +1,30 @@
-﻿using FitnessApi.DTOs;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using FitnessApi.DTOs;
 using FitnessApi.Models;
 using FitnessApi.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 
 namespace FitnessApi.Services
 {
     public class AuthService : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IJwtTokenGenerator _jwtTokenGenerator;
-        public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config, IJwtTokenGenerator jwtTokenGenerator)
+        private readonly IConfiguration _config;
+
+        public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config)
         {
             _userManager = userManager;
-            _jwtTokenGenerator = jwtTokenGenerator;
+            _config = config;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
         {
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
             if (userExists != null)
-            {
                 return new AuthResponseDto { IsSuccess = false, Message = "Email already in use" };
-            }
 
             var user = new ApplicationUser
             {
@@ -38,34 +41,46 @@ namespace FitnessApi.Services
                 return new AuthResponseDto { IsSuccess = false, Message = $"Registration failed: {errors}" };
             }
 
-            // Optional: Assign a default role here
-            // await _userManager.AddToRoleAsync(user, "GymGoer");
-
-            return new AuthResponseDto { IsSuccess = true, Message = "User created successfully." };
+            var token = GenerateJwtToken(user);
+            return new AuthResponseDto { IsSuccess = true, Message = "User created successfully.", Token = token };
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
         {
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null)
-            {
                 return new AuthResponseDto { IsSuccess = false, Message = "Invalid credentials." };
-            }
 
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
             if (!isPasswordValid)
-            {
                 return new AuthResponseDto { IsSuccess = false, Message = "Invalid credentials." };
-            }
 
-            var token = await _jwtTokenGenerator.GenerateJwtToken(user);
+            var token = GenerateJwtToken(user);
+            return new AuthResponseDto { IsSuccess = true, Message = "Login successful", Token = token };
+        }
 
-            return new AuthResponseDto
+        private string GenerateJwtToken(ApplicationUser user)
+        {
+            var claims = new[]
             {
-                IsSuccess = true,
-                Message = "Login successful",
-                Token = token
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email!),
+                new Claim("fullName", user.FullName ?? ""),
             };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expireDays = Convert.ToDouble(_config["Jwt:ExpireDays"] ?? "7");
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddDays(expireDays),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

@@ -10,7 +10,19 @@ namespace FitnessApi.Database
         public FitnessDbContext(DbContextOptions<FitnessDbContext> options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            base.OnModelCreating(builder); 
+            base.OnModelCreating(builder);
+
+            builder.Entity<Subscription>()
+                .HasOne<ApplicationUser>()
+                .WithMany(u => u.Subscriptions)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<AccessLog>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
